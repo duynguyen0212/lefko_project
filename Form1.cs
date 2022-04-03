@@ -30,14 +30,19 @@ namespace lefko
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            
+            if (!_serialPort.IsOpen)
+            {
+                _serialPort.Open();
+            }
+
             _serialPort.Handshake = Handshake.None;
             _serialPort.DataReceived += new SerialDataReceivedEventHandler(sp_DataReceived);
             _serialPort.WriteTimeout = 500;
-            _serialPort.Open();
-
+            
             //SQL data table
             dataGridView1.DataSource = getData();
+            textMatrix.Select();
+            WindowState = FormWindowState.Maximized;
 
         }
 
@@ -48,7 +53,7 @@ namespace lefko
             DataTable dt = new DataTable();
             using (con)
             {
-                using(SqlCommand cmd = new SqlCommand("SELECT * FROM Table_lefko2", con))
+                using(SqlCommand cmd = new SqlCommand("SELECT * FROM Table_lefko2 ORDER BY [Date et Heure] DESC", con))
                 {
                     con.Open();
                     SqlDataReader reader = cmd.ExecuteReader();
@@ -122,7 +127,7 @@ namespace lefko
             }
             else
             {
-                dataGridView1.Rows.RemoveAt(index);
+                dataGridView1.Rows.RemoveAt(0);
 
             }
         }
@@ -154,7 +159,7 @@ namespace lefko
                     row[2] = boite.ToString();
                     row[3] = textEmp.Text.ToString();
                     row[4] = textPoids.Text.ToString();
-                    dt.Rows.Add(row);
+                    dt.Rows.InsertAt(row, 0);
                 }
                 else
                 {
@@ -165,7 +170,7 @@ namespace lefko
                     row[2] = boite.ToString();
                     row[3] = textEmp.Text.ToString();
                     row[4] = textPoids.Text.ToString();
-                    dt.Rows.Add(row);
+                    dt.Rows.InsertAt(row, 0);
                 }
                 
                 // Empty the text box for next scan
@@ -192,9 +197,9 @@ namespace lefko
             DataRow row = dt.NewRow();
             row[0] = date.ToString();
             row[1] = matrix.ToString();
-            
 
-            dt.Rows.Add(row);
+
+            dt.Rows.InsertAt(row, 0);
 
 
             // Empty the text box for next scan
@@ -312,13 +317,23 @@ namespace lefko
             string connString = ConfigurationManager.ConnectionStrings["lefko.Properties.Settings.Table_lefko"].ConnectionString;
 
             SqlConnection con = new SqlConnection(connString);
-            dt = dataGridView1.DataSource as DataTable;
+            dt = dataGridView1.DataSource as DataTable; 
+            try
+            {
+                //Update data to database
+                sda = new SqlDataAdapter(@"SELECT * FROM Table_lefko2", con);
+                SqlCommandBuilder scb = new SqlCommandBuilder(sda);
+                sda.Update(dt);
+                dt.Clear();
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Could not delete row from database.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Form1_Load(sender, e);
+                
 
-            //Update data to database
-            sda = new SqlDataAdapter(@"SELECT * FROM Table_lefko2", con);
-            SqlCommandBuilder scb = new SqlCommandBuilder(sda);
-            sda.Update(dt);
-            dt.Clear();
+            }
+           
         }
 
         private void textLabel_KeyDown(object sender, KeyEventArgs e)
